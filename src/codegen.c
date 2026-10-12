@@ -431,7 +431,26 @@ void codegen_stmt(codegen_ctx_t *ctx, ast_node_t *stmt)
          *   Preenche cond.false_list → emite lend
          * --------------------------------------------------------------- */
         case AST_FOR:
-            fprintf(stderr, "[CODEGEN] TODO-E3-D: for não implementado.\n");
+            codegen_stmt(ctx, stmt->children[0]);
+            
+            char *lbegin_for = tac_new_label();
+            codegen_emit(ctx, TAC_LABEL, lbegin_for, NULL, NULL);
+
+            bool_result_t cond_for = codegen_bool_expr(ctx, stmt->children[1]);
+
+            char *lbody_for  = tac_new_label();
+            patch_list_backpatch(cond_for.true_list, lbody_for);
+            codegen_emit(ctx, TAC_LABEL, lbody_for, NULL, NULL);
+            codegen_stmt(ctx, stmt->children[3]);
+
+            codegen_stmt(ctx, stmt->children[2]);
+
+            codegen_emit(ctx, TAC_JUMP, lbegin_for, NULL, NULL);
+
+
+            char *lend_for   = tac_new_label();
+            patch_list_backpatch(cond_for.false_list, lend_for);
+            codegen_emit(ctx, TAC_LABEL, lend_for, NULL, NULL);
             break;
 
         default:
