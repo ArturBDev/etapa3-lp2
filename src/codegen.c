@@ -143,19 +143,27 @@ void codegen_fun(codegen_ctx_t *ctx, ast_node_t *fun_decl)
     codegen_emit(ctx, TAC_BEGINFUNC, fname, NULL, NULL);
 
     ast_node_t *param = fun_decl->children[1];
-    int param_offset = -4;
+    int param_offset = 0;
     while (param) {
         if (param->type == AST_PARAM && param->value) {
             sym_entry_t *e = symtab_lookup(ctx->symtab, param->value);
             if (e) {
                 e->scope  = SYM_SCOPE_LOCAL;
                 e->offset = param_offset;
-                param_offset -= type_size(e->datatype);
+                
+                char offset_str[16];
+                snprintf(offset_str, sizeof(offset_str), "%d", param_offset);
+
+                codegen_emit(ctx, TAC_DECL_LOCAL,
+                            param->value, offset_str, NULL);
+
+                param_offset += 8;
             }
         }
         param = param->next;
     }
 
+    ctx->local_offset = param_offset;
     ast_node_t *body = fun_decl->children[2];
     if (body && body->type == AST_BLOCK) {
         ast_node_t *stmt = body->children[0];
@@ -370,11 +378,11 @@ void codegen_stmt(codegen_ctx_t *ctx, ast_node_t *stmt)
             codegen_stmt(ctx, stmt->children[1]);
 
             char *lend_if = tac_new_label();
-            char *lfalse = tac_new_label();
 
             if(stmt->children[2]){
                 codegen_emit(ctx, TAC_JUMP, lend_if, NULL, NULL);
-                
+
+                char *lfalse = tac_new_label();                
                 patch_list_backpatch(cond_if.false_list, lfalse);
                 codegen_emit(ctx, TAC_LABEL, lfalse, NULL, NULL);
 
