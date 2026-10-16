@@ -143,27 +143,24 @@ void codegen_fun(codegen_ctx_t *ctx, ast_node_t *fun_decl)
     codegen_emit(ctx, TAC_BEGINFUNC, fname, NULL, NULL);
 
     ast_node_t *param = fun_decl->children[1];
-    int param_offset = 0;
+    
+    int param_offset = -8;
     while (param) {
         if (param->type == AST_PARAM && param->value) {
             sym_entry_t *e = symtab_lookup(ctx->symtab, param->value);
             if (e) {
                 e->scope  = SYM_SCOPE_LOCAL;
                 e->offset = param_offset;
-                
                 char offset_str[16];
-                snprintf(offset_str, sizeof(offset_str), "%d", param_offset);
-
-                codegen_emit(ctx, TAC_DECL_LOCAL,
-                            param->value, offset_str, NULL);
-
-                param_offset += 8;
+                snprintf(offset_str, sizeof(offset_str), "%d", -param_offset - 8);
+                codegen_emit(ctx, TAC_DECL_LOCAL, param->value, offset_str, NULL);
+                param_offset -= type_size(e->datatype);
             }
         }
         param = param->next;
     }
-
-    ctx->local_offset = param_offset;
+    ctx->local_offset = -param_offset - 8;
+    
     ast_node_t *body = fun_decl->children[2];
     if (body && body->type == AST_BLOCK) {
         ast_node_t *stmt = body->children[0];
